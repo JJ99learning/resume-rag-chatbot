@@ -5,3 +5,6 @@ __pycache__/
 *.pdf
 .idea/
 models/
+AGENT.md
+CLAUDE.md
+ROADMAP.md

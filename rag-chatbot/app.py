@@ -9,6 +9,9 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 from ingestor import ingest
 from rag import rag_query
+from jd_analyzer import analyze_jd
+from fit_scorer import score_fit
+from rag import clear_debug_log, get_debug_log
 
 st.set_page_config(page_title="Resume RAG Chatbot", page_icon="📄")
 st.title("📄 Resume RAG Chatbot")
@@ -30,6 +33,7 @@ with st.sidebar:
                         ingest(tmp_path)
                         st.session_state.file_ingested = True
                         st.session_state.messages = []
+                        st.session_state.jd_report = None
                     finally:
                         os.unlink(tmp_path)
                 st.rerun()
@@ -39,7 +43,25 @@ with st.sidebar:
         if st.button("Replace with new resume"):
             st.session_state.file_ingested = False
             st.session_state.messages = []
+            st.session_state.jd_report = None
             st.rerun()
+
+    st.divider()
+    st.header("JD Analysis")
+    if not st.session_state.get("file_ingested"):
+        st.caption("Load a resume first.")
+    else:
+        jd_text = st.text_area("Paste Job Description", height=200,
+                               placeholder="Paste the full JD here...")
+        if jd_text.strip():
+            if st.button("Analyze Fit →", type="primary"):
+                with st.spinner("Analyzing... (~30s)"):
+                    clear_debug_log()
+                    jd_analysis = analyze_jd(jd_text)
+                    result = score_fit(jd_analysis)
+                    st.session_state.jd_report = result
+                    st.session_state.debug_log = get_debug_log()
+                st.rerun()
 
 # --- Init session state ---
 if "messages" not in st.session_state:
@@ -49,6 +71,25 @@ if "messages" not in st.session_state:
 if not st.session_state.get("file_ingested"):
     st.info("Upload a resume PDF in the sidebar and click **Load Resume** to start.")
 else:
+    if st.session_state.get("jd_report"):
+        r = st.session_state.jd_report
+        st.subheader("JD Fit Report")
+        st.metric("Fit Score", f"{r['score']} / 100")
+        st.markdown(r["report"])
+
+        if st.session_state.get("debug_log"):
+            with st.expander("🔍 Debug View — Full Pipeline Trace"):
+                for i, entry in enumerate(st.session_state.debug_log):
+                    st.markdown(f"### {entry['label']}")
+                    st.markdown("**Prompt sent to Claude:**")
+                    st.code(entry["prompt"], language="text")
+                    st.markdown("**Raw response:**")
+                    st.code(entry["response"], language="text")
+                    if i < len(st.session_state.debug_log) - 1:
+                        st.divider()
+
+        st.divider()
+
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])

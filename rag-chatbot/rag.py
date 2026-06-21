@@ -1,15 +1,27 @@
 import subprocess
 from retriever import retrieve
 
+_debug_log: list[dict] = []
 
-def ask_claude(prompt: str) -> str:
+
+def ask_claude(prompt: str, label: str = "") -> str:
     result = subprocess.run(
         ["claude", "-p", prompt],
         capture_output=True, text=True, encoding="utf-8"
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr)
-    return result.stdout.strip()
+    output = result.stdout.strip()
+    _debug_log.append({"label": label, "prompt": prompt, "response": output})
+    return output
+
+
+def get_debug_log() -> list[dict]:
+    return list(_debug_log)
+
+
+def clear_debug_log() -> None:
+    _debug_log.clear()
 
 
 def rag_query(question: str) -> str:
@@ -23,7 +35,7 @@ Resume content:
 Question: {question}
 
 Answer:"""
-    return ask_claude(prompt)
+    return ask_claude(prompt, label="Chat")
 
 
 if __name__ == "__main__":

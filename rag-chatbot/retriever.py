@@ -19,6 +19,14 @@ def retrieve(query: str) -> list[str]:
     return results["documents"][0]
 
 
+def retrieve_all() -> list[str]:
+    client = chromadb.PersistentClient(path=DB_PATH)
+    ef = DefaultEmbeddingFunction()
+    collection = client.get_collection(COLLECTION_NAME, embedding_function=ef)
+    results = collection.get()
+    return results["documents"]
+
+
 if __name__ == "__main__":
     query = sys.argv[1] if len(sys.argv) > 1 else "What is your work experience?"
     print(f"Query: {query}\n")
